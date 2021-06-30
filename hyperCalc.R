@@ -16,7 +16,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     require(tidyr)
     require(tictoc)
     require(furrr)
-    })
+  })
   #data
   set.seed(12345)
   data_file <- data %>% filter(complete.cases(.))
@@ -35,7 +35,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
   all_comb <- list()## pasar a foreach para consistencia de codigo
   for (i in 1:ncol(comb_pars)) {
     all_comb[[i]] <- map(species_list, ~select(., comb_pars[, i]))
-}
+  }
   #calcular los volumnes para cada combinacion en paralelo
   if (!is.null(cores) & cores >= 2) {
     cat("calculating hypervolume in parallel across combinations...\n")
@@ -44,7 +44,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     plan(multicore, workers = workers)
     tic()
     vols <- foreach(i = 1:length(all_comb), .packages = c("future","furrr", "purrr","hypervolume")) %dopar% {
-      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = TRUE)
+      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = T)
 
     }
     exectime <- toc()
@@ -57,11 +57,11 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     cat("calculating hypervolume serially across combinations...\n")
     plan(multicore, workers = workers)
     tic()
-      vols <- foreach(i = 1:length(all_comb), .packages = c("furrr","purrr","hypervolume")) %do% {
-        furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = TRUE)
-      }
-      exectime <- toc()
-      exectime <- exectime$toc - exectime$tic
+    vols <- foreach(i = 1:length(all_comb), .packages = c("furrr","purrr","hypervolume")) %do% {
+      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", kde.bandwidth = val_est_band, samples.per.point = samples_per_points)))
+    }
+    exectime <- toc()
+    exectime <- exectime$toc - exectime$tic
 
   }
   cat("generating final dataframe...\n")
@@ -81,3 +81,5 @@ get_comb <- function(var_names, n_comb){
   comb_pars <- combn(var_names, n_comb)
   return(comb_pars)
 }
+
+
