@@ -1,13 +1,9 @@
-#####funcion: entrega el hypervolumen para cada combinacion pareada junto al promedio de todos los hypervolumnes por especie
-#####se puede usar  serial o paralelo
-#####quizas agregar mensajes de error y mensajes de estado de proceso
-#####arreglar la toma de tiepo (usar tictoc)
-####guardar la funcion en un archivo (e.g. hyperV.R)
-#args: data: datos brutos, con una columna "species" (Quizas agregar argumento para ver si se quiere o no estandarizar y/o que metodo usar)
+#####funcion: entrega el hypervolumen para cada combinación pareada junto al promedio de todos los hypervolumnes por especie
+#args: data: datos brutos, con una columna "species" (Quizas agregar argumento para ver si se quiere o no estandarizar y/o que método usar)
 #cores: numero de cores que se quieran usar
 #var_names: vector de los nombres de las variables a utilizar
 #n_occs: numero de ocurrencias minimo por especie
-#n_comb: numero de variables (i.e. dimensiones de nicho) en cada combinacion (quizas agrgar un warning cuando hay mas dimensiones que occs).
+#n_comb: numero de variables (i.e. dimensiones de nicho) en cada combinación (quizas agrgar un warning cuando hay mas dimensiones que occs).
 #samples_per_points: numer de puntos aleatorios por ocurrencias empiricas (creo)
 calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per_points) {
   suppressPackageStartupMessages({
