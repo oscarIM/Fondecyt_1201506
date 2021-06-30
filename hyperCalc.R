@@ -28,6 +28,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
   data_hv <- data_hv %>% filter(species %in% summ_data$species)
   ##estandarizar
   data_standarized <- data_hv %>% mutate_if(is.numeric, scale, center = TRUE, scale = TRUE)
+  #ELIMINAR EL CALCULO FIJO DEL BANDWIDTH
   est_band <- estimate_bandwidth(data_standarized[, 2:ncol(data_standarized)], method = "silverman")
   val_est_band <- est_band[[1]]
   species_list <- split(data_standarized, f = data_standarized$species)
