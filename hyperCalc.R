@@ -44,7 +44,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     plan(multicore, workers = workers)
     tic()
     vols <- foreach(i = 1:length(all_comb), .packages = c("future","furrr", "purrr","hypervolume")) %dopar% {
-      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = T)
+      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = TRUE)
 
     }
     exectime <- toc()
@@ -58,7 +58,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     plan(multicore, workers = workers)
     tic()
       vols <- foreach(i = 1:length(all_comb), .packages = c("furrr","purrr","hypervolume")) %do% {
-        furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", kde.bandwidth = val_est_band, samples.per.point = samples_per_points)))
+        furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = TRUE)
       }
       exectime <- toc()
       exectime <- exectime$toc - exectime$tic
