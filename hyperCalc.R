@@ -5,7 +5,7 @@
 #n_occs: numero de ocurrencias minimo por especie
 #n_comb: numero de variables (i.e. dimensiones de nicho) en cada combinación (quizas agrgar un warning cuando hay mas dimensiones que occs).
 #samples_per_points: numer de puntos aleatorios por ocurrencias empiricas (creo)
-calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per_points) {
+calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per_points, workers) {
   suppressPackageStartupMessages({
     require(hypervolume)
     require(dplyr)
@@ -41,7 +41,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     cat("calculating hypervolume in parallel across combinations...\n")
     cl <- parallel::makeCluster(cores, setup_timeout = 0.5)
     registerDoParallel(cl)
-    plan(multicore, workers = 5)
+    plan(multicore, workers = workers)
     tic()
     vols <- foreach(i = 1:length(all_comb), .packages = c("furrr", "purrr","hypervolume")) %dopar% {
       furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = T)
@@ -55,7 +55,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
   #calcular los volumnes de forma serial
   if (is.null(cores) | cores == 1) {
     cat("calculating hypervolume serially across combinations...\n")
-    plan(multicore, workers = 5)
+    plan(multicore, workers = workers)
     tic()
     vols <- foreach(i = 1:length(all_comb), .packages = c("furrr","purrr","hypervolume")) %do% {
       furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", kde.bandwidth = val_est_band, samples.per.point = samples_per_points)))
