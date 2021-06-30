@@ -28,9 +28,6 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
   data_hv <- data_hv %>% filter(species %in% summ_data$species)
   ##estandarizar
   data_standarized <- data_hv %>% mutate_if(is.numeric, scale, center = TRUE, scale = TRUE)
-  #ELIMINAR EL CALCULO FIJO DEL BANDWIDTH
-  est_band <- estimate_bandwidth(data_standarized[, 2:ncol(data_standarized)], method = "silverman")
-  val_est_band <- est_band[[1]]
   species_list <- split(data_standarized, f = data_standarized$species)
   #combinaciones de parametros
   cat("creating all variable combinations...\n")
@@ -46,8 +43,8 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     registerDoParallel(cl)
     plan(multicore, workers = 10)
     tic()
-    vols <- foreach(i = 1:length(all_comb), .packages = c("purrr","hypervolume")) %dopar% {
-      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", kde.bandwidth = val_est_band, samples.per.point = samples_per_points)))
+    vols <- foreach(i = 1:length(all_comb), .packages = c("furrr", "purrr","hypervolume")) %dopar% {
+      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)))
 
     }
     exectime <- toc()
@@ -60,7 +57,7 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     cat("calculating hypervolume serially...\n")
     plan(multicore, workers = 10)
     tic()
-      vols <- foreach(i = 1:length(all_comb), .packages = c("purrr","hypervolume")) %do% {
+      vols <- foreach(i = 1:length(all_comb), .packages = c("furrr","purrr","hypervolume")) %do% {
         furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", kde.bandwidth = val_est_band, samples.per.point = samples_per_points)))
       }
       exectime <- toc()
