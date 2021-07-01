@@ -1,11 +1,12 @@
-#####funcion: entrega el hypervolumen para cada combinación pareada junto al promedio de todos los hypervolumnes por especie
-#args: data: datos brutos, con una columna "species" (Quizas agregar argumento para ver si se quiere o no estandarizar y/o que método usar)
+#####función: entrega el hipervolumen para cada combinación pareada junto al promedio de todos los hipervolumenes por especie
+#####args####
+#data: datos brutos,
 #cores: numero de cores que se quieran usar
 #var_names: vector de los nombres de las variables a utilizar
-#n_occs: numero de ocurrencias minimo por especie
-#n_comb: numero de variables (i.e. dimensiones de nicho) en cada combinación (quizas agrgar un warning cuando hay mas dimensiones que occs).
-#samples_per_points: numer de puntos aleatorios por ocurrencias empiricas (creo)
-calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per_points, workers) {
+#n_occs: numero de ocurrencias mínimo por especie
+#n_comb: numero de variables (i.e. dimensiones de nicho) en cada combinación
+#samples_per_points: numero de puntos aleatorios por ocurrencias empíricas (creo)
+calc_hVol <- function(data, cores, var_names, n_occs, n_comb, samples_per_points) {
   suppressPackageStartupMessages({
     require(hypervolume)
     require(dplyr)
@@ -15,66 +16,57 @@ calc_hVol <- function(data, cores = NULL, var_names, n_occs, n_comb, samples_per
     require(doParallel)
     require(tidyr)
     require(tictoc)
-    require(furrr)
-  })
-  #data
+    })
+  #datos
   set.seed(12345)
   data_file <- data %>% filter(complete.cases(.))
-  #vars to analyses
+  #seleccion variables
   data_hv <- data_file %>% select("species", all_of(var_names))
   data_hv <- as.data.frame(data_hv)
-  ##filtrar por n
+  ##filtrado por numero de ocurrencias
   summ_data <- data_hv %>% count(species) %>% filter(n >= n_occs)
   data_hv <- data_hv %>% filter(species %in% summ_data$species)
-  ##estandarizar
+  ##estandarización
   data_standarized <- data_hv %>% mutate_if(is.numeric, scale, center = TRUE, scale = TRUE)
   species_list <- split(data_standarized, f = data_standarized$species)
-  #combinaciones de parametros
-  cat("creating all variable combinations...\n")
+  #combinaciones de parámetros
+  cat("creando todas las combinaciones de variables...\n")
   comb_pars <- as.data.frame(combn(var_names, n_comb))
-  all_comb <- list()## pasar a foreach para consistencia de codigo
+  all_comb <- list()## pasar a foreach para consistencia de código
   for (i in 1:ncol(comb_pars)) {
     all_comb[[i]] <- map(species_list, ~select(., comb_pars[, i]))
-  }
-  #calcular los volumnes para cada combinacion en paralelo
-  if (!is.null(cores) & cores >= 2) {
-    cat("calculating hypervolume in parallel across combinations...\n")
+    }
+  #calcular el volumen para cada combinación en paralelo
+  if (cores >= 2) {
+    cat("calculando hipervolumenes en paralelo...\n")
     cl <- parallel::makeCluster(cores, setup_timeout = 0.5)
     registerDoParallel(cl)
-    plan(multicore, workers = workers)
-    tic()
-    vols <- foreach(i = 1:length(all_comb), .packages = c("furrr", "purrr","hypervolume")) %dopar% {
-      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", samples.per.point = samples_per_points)), .progress = T)
-
-    }
-    exectime <- toc()
-    exectime <- exectime$toc - exectime$tic
-    #print(exectime)
+    tic("tiempo de ejecución")
+    vols <- foreach(c = 1:length(all_comb), .packages = "hypervolume") %:%
+      foreach(n = 1:length(all_comb[[1]])) %dopar% {
+        get_volume(hypervolume(data = all_comb[[c]][[n]], method = "box", samples.per.point = samples_per_points))
+        }
+    toc(log = TRUE)
     stopCluster(cl)
-  }
-  #calcular los volumnes de forma serial
-  if (is.null(cores) | cores == 1) {
-    cat("calculating hypervolume serially across combinations...\n")
-    plan(multicore, workers = workers)
-    tic()
-    vols <- foreach(i = 1:length(all_comb), .packages = c("furrr","purrr","hypervolume")) %do% {
-      furrr::future_map(all_comb[[i]], ~get_volume(hypervolume(data=., method = "box", kde.bandwidth = val_est_band, samples.per.point = samples_per_points)))
     }
-    exectime <- toc()
-    exectime <- exectime$toc - exectime$tic
-
-  }
-  cat("generating final dataframe...\n")
-  vols_DF <- as.data.frame(t(bind_rows(vols)))
-  vols_DF <- vols_DF %>% mutate(species = rownames(vols_DF)) %>% relocate(species)
-  rownames(vols_DF) <- NULL
-  df_log <- pivot_longer(vols_DF, cols = V1:last_col() , names_to = "combination", values_to = "hyperV")
-  df_log_M <- df_log %>% group_by(species) %>% summarize(mean = mean(hyperV))
-  vols_DF <- left_join(vols_DF, df_log_M, by = "species")
-  vols_DF <- left_join(vols_DF, summ_data , by = "species")
-  cat("ready...\n")
-  return(vols_DF)
-
+  if (cores == 1) {
+    cat("calculando hipervolumnes en serie...\n")
+    tic("tiempo de ejecución")
+    vols <- foreach(c = 1:length(all_comb), .packages = "hypervolume") %:%
+      foreach(n = 1:length(all_comb[[1]])) %do% {
+        get_volume(hypervolume(data = all_comb[[c]][[n]], method = "box", samples.per.point = samples_per_points))
+        }
+    toc(log = TRUE)
+    }
+  cat("generando resultados...\n")
+  tmp <- map(vols, ~do.call(rbind, .)) %>% bind_cols() %>% mutate(species = names(species_list)) %>% relocate(species)
+ names(tmp)[2:length(tmp)] <- paste0("comb_", seq(1:length(all_comb)))
+ tmp_log <- pivot_longer(tmp, cols = comb_1:last_col() , names_to = "combinations", values_to = "hyperV")
+ tmp_log_M <- tmp_log %>% group_by(species) %>% summarize(mean = mean(hyperV))
+ vols_DF <- left_join(tmp, tmp_log_M, by = "species")
+ vols_DF <- left_join(vols_DF, summ_data , by = "species")
+ cat("!listo!...\n")
+ return(vols_DF)
 }
 
 get_comb <- function(var_names, n_comb){
