@@ -18,6 +18,7 @@ calc_hVol <- function(data, cores, var_names, n_occs, n_comb, samples_per_points
     require(tictoc)
     })
   #datos
+  options(scipen = 999)
   set.seed(12345)
   data_file <- data %>% filter(complete.cases(.))
   #seleccion variables
@@ -42,8 +43,8 @@ calc_hVol <- function(data, cores, var_names, n_occs, n_comb, samples_per_points
     cl <- parallel::makeCluster(cores, setup_timeout = 0.5)
     registerDoParallel(cl)
     tic("tiempo de ejecución")
-    vols <- foreach(c = 1:length(all_comb), .packages = "hypervolume") %:%
-      foreach(n = 1:length(all_comb[[1]])) %dopar% {
+    vols <- foreach(c = 1:length(all_comb)) %:%
+      foreach(n = 1:length(all_comb[[1]]), .packages = "hypervolume") %dopar% {
         get_volume(hypervolume(data = all_comb[[c]][[n]], method = "box", samples.per.point = samples_per_points))
         }
     toc(log = TRUE)
@@ -59,7 +60,7 @@ calc_hVol <- function(data, cores, var_names, n_occs, n_comb, samples_per_points
     toc(log = TRUE)
     }
   cat("generando resultados...\n")
-  tmp <- map(vols, ~do.call(rbind, .)) %>% bind_cols() %>% mutate(species = names(species_list)) %>% relocate(species)
+  suppressMessages(tmp <- map(vols, ~do.call(rbind, .)) %>% bind_cols() %>% mutate(species = names(species_list)) %>% relocate(species))
  names(tmp)[2:length(tmp)] <- paste0("comb_", seq(1:length(all_comb)))
  tmp_log <- pivot_longer(tmp, cols = comb_1:last_col() , names_to = "combinations", values_to = "hyperV")
  tmp_log_M <- tmp_log %>% group_by(species) %>% summarize(mean = mean(hyperV))
@@ -68,7 +69,6 @@ calc_hVol <- function(data, cores, var_names, n_occs, n_comb, samples_per_points
  cat("!listo!...\n")
  return(vols_DF)
 }
-
 get_comb <- function(var_names, n_comb){
   comb_pars <- combn(var_names, n_comb)
   return(comb_pars)
