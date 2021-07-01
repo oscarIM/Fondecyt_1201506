@@ -1,3 +1,3 @@
-# Fondecyt_1201506
+# Fondecyt 1201506
 códigos utilizados en el proyecto
-- hyperCalc.R: funcion para calcular el hypervolumen
+- hyperCalc.R: función para calcular el hipervolumen para combinaciones de n dimensiones de nicho
